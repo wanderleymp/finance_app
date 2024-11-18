@@ -6,8 +6,9 @@ import {
   Target,
   Settings,
   HelpCircle,
-  Building2,
-  X
+  Key,
+  X,
+  UserCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,10 +20,11 @@ interface SidebarProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-  { name: 'Usuários', href: '/users', icon: Users },
+  { name: 'Pessoas', href: '/people', icon: UserCircle },
   { name: 'Finanças', href: '/finances', icon: Wallet },
   { name: 'Metas', href: '/goals', icon: Target },
-  { name: 'Empresa', href: '/company', icon: Building2 },
+  { name: 'Licenças', href: '/licenses', icon: Key },
+  { name: 'Usuários', href: '/users', icon: Users },
   { name: 'Configurações', href: '/settings', icon: Settings },
   { name: 'Ajuda', href: '/help', icon: HelpCircle },
 ];

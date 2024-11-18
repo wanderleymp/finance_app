@@ -6,6 +6,7 @@ import { Register } from '../pages/auth/Register';
 import { ForgotPassword } from '../pages/auth/ForgotPassword';
 import { Dashboard } from '../pages/dashboard/Dashboard';
 import { UsersList } from '../pages/users/UsersList';
+import { PeopleList } from '../pages/people/PeopleList';
 import { useAuth } from '../hooks/useAuth';
 
 export function AppRoutes() {
@@ -24,6 +25,7 @@ export function AppRoutes() {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users" element={<UsersList />} />
+          <Route path="/people" element={<PeopleList />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       )}
