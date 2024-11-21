@@ -3,13 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Wallet } from 'lucide-react';
+import { Wallet, Loader2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { IS_DEMO } from '../../utils/constants';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
-  password: z.string().min(1, 'A senha é obrigatória'),
+  identifier: z.string()
+    .email('E-mail inválido')
+    .min(1, 'E-mail é obrigatório'),
+  password: z.string()
+    .min(1, 'A senha é obrigatória')
+    .min(4, 'A senha deve ter pelo menos 4 caracteres'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -19,25 +24,38 @@ export function Login() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const { register, handleSubmit, formState: { errors }, setError } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: 'wanderley@agilegestao.com',
+    defaultValues: IS_DEMO ? {
+      identifier: 'wanderley@agilegestao.com',
       password: '4321',
-    },
+    } : undefined,
   });
 
   const onSubmit = async (data: LoginForm) => {
     try {
       setIsLoading(true);
-      console.log('Submitting login form:', { email: data.email });
-      
       await signIn(data);
-      toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Login submission error:', error);
-      // Error is already handled by the auth context
+      console.error('Login error:', error);
+      
+      if (error instanceof Error) {
+        // Handle specific error messages
+        if (error.message.includes('Credenciais')) {
+          setError('identifier', { message: 'Credenciais inválidas' });
+          setError('password', { message: 'Credenciais inválidas' });
+          toast.error('E-mail ou senha incorretos');
+        } else if (error.message.includes('conexão')) {
+          toast.error('Erro de conexão. Verifique sua internet e tente novamente');
+        } else if (error.message.includes('servidor')) {
+          toast.error('O servidor está indisponível. Tente novamente mais tarde');
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.error('Erro ao realizar login. Por favor, tente novamente');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -60,23 +78,28 @@ export function Login() {
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               Sua gestão financeira inteligente
             </p>
+            {IS_DEMO && (
+              <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/50 p-2 rounded">
+                Modo demonstração - Use as credenciais pré-preenchidas
+              </p>
+            )}
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4 rounded-md">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   E-mail
                 </label>
                 <input
-                  {...register('email')}
-                  id="email"
+                  {...register('identifier')}
+                  id="identifier"
                   type="email"
                   autoComplete="email"
                   className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm dark:bg-gray-800 transition-all duration-200"
                   placeholder="seu@email.com"
                 />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                {errors.identifier && (
+                  <p className="mt-1 text-sm text-red-600">{errors.identifier.message}</p>
                 )}
               </div>
               <div>
@@ -114,7 +137,11 @@ export function Login() {
                 disabled={isLoading}
                 className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                {isLoading ? 'Entrando...' : 'Entrar'}
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  'Entrar'
+                )}
               </button>
             </div>
 

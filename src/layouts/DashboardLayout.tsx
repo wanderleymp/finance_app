@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
+import { DemoIndicator } from '../components/DemoIndicator';
 
 export function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,6 +29,8 @@ export function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      <DemoIndicator />
     </div>
   );
 }

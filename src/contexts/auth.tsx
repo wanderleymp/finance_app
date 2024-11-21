@@ -1,7 +1,12 @@
-import { createContext, ReactNode, useCallback, useState } from 'react';
-import { api } from '../lib/api';
+import { createContext, ReactNode, useCallback, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { login, logout, getStoredToken, isTokenValid } from '../services/authService';
 import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
+import { IS_DEMO } from '../utils/constants';
+import { mockAuthResponse } from '../mocks/auth';
+import { handleError } from '../utils/errorHandler';
+import apiClient from '../lib/apiClient';
 
 interface User {
   user_id: number;
@@ -37,7 +42,7 @@ interface AuthState {
 }
 
 interface SignInCredentials {
-  email: string;
+  identifier: string;
   password: string;
 }
 
@@ -52,23 +57,35 @@ interface AuthContextData {
 export const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [data, setData] = useState<AuthState>(() => {
     try {
-      const token = localStorage.getItem('@AgileFinance:token');
+      const token = getStoredToken();
       const user = localStorage.getItem('@AgileFinance:user');
 
-      if (token && user) {
-        api.defaults.headers.common.Authorization = `Bearer ${token}`;
+      if (token && user && isTokenValid(token)) {
+        apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
         return { token, user: JSON.parse(user) };
       }
     } catch (error) {
-      localStorage.removeItem('@AgileFinance:token');
-      localStorage.removeItem('@AgileFinance:user');
       console.error('Error loading auth state:', error);
     }
 
     return {} as AuthState;
   });
+
+  useEffect(() => {
+    // Check token validity periodically
+    const checkTokenInterval = setInterval(() => {
+      const token = getStoredToken();
+      if (token && !isTokenValid(token)) {
+        signOut();
+        navigate('/login');
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkTokenInterval);
+  }, [navigate]);
 
   const hasPermission = useCallback((featureName: string): boolean => {
     if (!data.user?.permissions?.permissions) return false;
@@ -80,74 +97,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return permission?.can_access ?? false;
   }, [data.user]);
 
-  const signIn = useCallback(async ({ email, password }: SignInCredentials) => {
+  const signIn = useCallback(async ({ identifier, password }: SignInCredentials) => {
     try {
-      // Mock successful login for development
-      const mockResponse = {
-        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        userDetails: {
-          user_id: 6,
-          username: "Wanderley Pinheiro",
-          person: {
-            person_id: 2,
-            full_name: "Wanderley Macedo",
-            fantasy_name: "Wanderley Macedo Pinheiro Junior",
-            contacts: [
-              {
-                contact_name: null,
-                contact_value: "wanderley@agilegestao.com",
-                contact_type: "E-Mail"
-              }
-            ]
-          },
-          permissions: {
-            profile_id: 1,
-            permissions: [
-              {
-                can_access: true,
-                feature_name: "view_dashboard",
-                permission_id: 1
-              }
-            ]
-          },
-          licenses: {
-            licenses: [
-              {
-                status: "Ativa",
-                license_id: 1,
-                start_date: "2024-09-10",
-                license_name: "AGILE"
-              }
-            ]
-          }
-        }
-      };
+      let response;
 
-      // Store mock data
-      const { token, userDetails } = mockResponse;
-      localStorage.setItem('@AgileFinance:token', token);
-      localStorage.setItem('@AgileFinance:user', JSON.stringify(userDetails));
+      if (IS_DEMO) {
+        response = mockAuthResponse;
+      } else {
+        response = await login({ identifier, password });
+      }
 
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+      const { token, userDetails } = response;
+
+      apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
       setData({ token, user: userDetails });
 
       toast.success(`Bem-vindo(a), ${userDetails.person.full_name}!`);
     } catch (error) {
-      const errorMessage = isAxiosError(error)
-        ? error.response?.data?.message || 'Erro ao fazer login'
-        : 'Erro inesperado ao fazer login';
-      
-      toast.error(errorMessage);
+      if (isAxiosError(error)) {
+        const message = error.response?.data?.message || 'Credenciais inválidas';
+        toast.error(message);
+      } else {
+        handleError(error);
+      }
       throw error;
     }
   }, []);
 
-  const signOut = useCallback(() => {
-    localStorage.removeItem('@AgileFinance:token');
-    localStorage.removeItem('@AgileFinance:user');
-    delete api.defaults.headers.common.Authorization;
-    setData({} as AuthState);
-  }, []);
+  const signOut = useCallback(async () => {
+    try {
+      await logout();
+      setData({} as AuthState);
+      navigate('/login');
+    } catch (error) {
+      handleError(error);
+    }
+  }, [navigate]);
 
   return (
     <AuthContext.Provider

@@ -2,44 +2,58 @@ import { useState } from 'react';
 import { 
   MoreVertical, 
   Edit2, 
-  Trash2, 
-  CheckCircle, 
-  XCircle,
-  Share2,
-  FileSpreadsheet,
+  Trash2,
   Mail,
+  Phone,
   MessageCircle,
-  FileText
+  Key,
+  Calendar,
+  User as UserIcon,
+  Eye,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { toast } from 'sonner';
-import { User } from '../../types/user';
-import { generatePDF } from '../../utils/pdf';
+import { User } from '../../services/userService';
 import { cn } from '../../lib/utils';
+import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface UserCardProps {
   user: User;
   view: 'grid' | 'list';
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
-  onStatusChange: (user: User, status: 'active' | 'inactive') => void;
+  onViewDetails: (user: User) => void;
+  onStatusChange: (user: User) => void;
 }
 
-export function UserCard({ user, view, onEdit, onDelete, onStatusChange }: UserCardProps) {
+export function UserCard({ 
+  user, 
+  view, 
+  onEdit, 
+  onDelete,
+  onViewDetails,
+  onStatusChange 
+}: UserCardProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const handleShare = (type: 'email' | 'whatsapp' | 'pdf') => {
-    const text = `Informações do usuário: ${user.name} (${user.email})`;
-    
-    if (type === 'email') {
-      window.location.href = `mailto:?subject=Informações do Usuário&body=${encodeURIComponent(text)}`;
-    } else if (type === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    } else if (type === 'pdf') {
-      generatePDF(user);
+  const mainEmail = user.person.contacts.find(c => c.contact_type === 'E-Mail')?.contact_value;
+  const mainWhatsApp = user.person.contacts.find(c => c.contact_type === 'Whatsapp')?.contact_value;
+  const mainDocument = user.person.documents[0]?.document_value;
+  const activeLicense = user.person.licenses.find(l => l.status === 'Ativa');
+
+  const handleWhatsAppClick = () => {
+    if (mainWhatsApp) {
+      window.open(`https://wa.me/${mainWhatsApp.replace(/\D/g, '')}`, '_blank');
     }
-    
-    setShowDropdown(false);
+  };
+
+  const handleEmailClick = () => {
+    if (mainEmail) {
+      window.location.href = `mailto:${mainEmail}`;
+    }
   };
 
   if (view === 'list') {
@@ -52,34 +66,65 @@ export function UserCard({ user, view, onEdit, onDelete, onStatusChange }: UserC
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-4">
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-              <span className="text-white font-medium text-sm">
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </span>
+              <UserIcon className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user.name}
+                {user.person.full_name}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {user.email}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                {mainDocument && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {mainDocument}
+                  </span>
+                )}
+                {mainEmail && (
+                  <button
+                    onClick={handleEmailClick}
+                    className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </button>
+                )}
+                {mainWhatsApp && (
+                  <button
+                    onClick={handleWhatsAppClick}
+                    className="text-green-600 hover:text-green-700 dark:text-green-400"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
-              {user.role}
-            </span>
             <button
-              onClick={() => onStatusChange(user, user.status === 'active' ? 'inactive' : 'active')}
+              onClick={() => onStatusChange(user)}
               className={cn(
-                "px-2.5 py-0.5 rounded-full text-xs font-medium",
-                user.status === 'active'
+                "px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1",
+                activeLicense
                   ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                   : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
               )}
             >
-              {user.status === 'active' ? 'Ativo' : 'Inativo'}
+              {activeLicense ? (
+                <>
+                  <CheckCircle className="h-3 w-3" />
+                  Ativo
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-3 w-3" />
+                  Inativo
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => onViewDetails(user)}
+              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <Eye className="h-4 w-4 text-gray-500" />
             </button>
             <div className="relative">
               <button
@@ -132,17 +177,17 @@ export function UserCard({ user, view, onEdit, onDelete, onStatusChange }: UserC
         <div className="flex justify-between items-start">
           <div className="flex items-center space-x-4">
             <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-              <span className="text-white font-medium text-lg">
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </span>
+              <UserIcon className="h-6 w-6 text-white" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
-                {user.name}
+                {user.person.full_name}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight mt-1">
-                {user.email}
-              </p>
+              {user.username && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight mt-1">
+                  {user.username}
+                </p>
+              )}
             </div>
           </div>
           
@@ -155,104 +200,108 @@ export function UserCard({ user, view, onEdit, onDelete, onStatusChange }: UserC
             </button>
 
             {showDropdown && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
-                <div className="py-1 divide-y divide-gray-100 dark:divide-gray-600">
-                  <div className="px-3 py-2">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Ações
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      <button
-                        onClick={() => {
-                          onEdit(user);
-                          setShowDropdown(false);
-                        }}
-                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-colors"
-                      >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => {
-                          onDelete(user);
-                          setShowDropdown(false);
-                        }}
-                        className="flex items-center w-full px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-md transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="px-3 py-2">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Compartilhar
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      <button
-                        onClick={() => handleShare('email')}
-                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-colors"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Via E-mail
-                      </button>
-                      <button
-                        onClick={() => handleShare('whatsapp')}
-                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-colors"
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Via WhatsApp
-                      </button>
-                      <button
-                        onClick={() => handleShare('pdf')}
-                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-colors"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Exportar PDF
-                      </button>
-                    </div>
-                  </div>
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      onEdit(user);
+                      setShowDropdown(false);
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => {
+                      onDelete(user);
+                      setShowDropdown(false);
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </button>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight">
-              Função
-            </p>
-            <p className="mt-1 text-sm text-gray-900 dark:text-white leading-tight">
-              {user.role}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight">
-              Último Acesso
-            </p>
-            <p className="mt-1 text-sm text-gray-900 dark:text-white leading-tight">
-              {new Date(user.lastAccess).toLocaleString('pt-BR')}
-            </p>
-          </div>
+        <div className="mt-4 space-y-3">
+          {mainDocument && (
+            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+              <UserIcon className="h-4 w-4 mr-2" />
+              {mainDocument}
+            </div>
+          )}
+          
+          {mainEmail && (
+            <button
+              onClick={handleEmailClick}
+              className="flex items-center text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              {mainEmail}
+            </button>
+          )}
+          
+          {mainWhatsApp && (
+            <button
+              onClick={handleWhatsAppClick}
+              className="flex items-center text-sm text-green-600 hover:text-green-700 dark:text-green-400"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              {mainWhatsApp}
+            </button>
+          )}
         </div>
+
+        {activeLicense && (
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Key className="h-4 w-4 text-indigo-500 mr-2" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {activeLicense.license_name}
+                </span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Desde {format(new Date(activeLicense.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 flex items-center justify-between">
           <button
-            onClick={() => onStatusChange(user, user.status === 'active' ? 'inactive' : 'active')}
-            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-              user.status === 'active'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800'
-                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800'
-            }`}
-          >
-            {user.status === 'active' ? (
-              <CheckCircle className="w-4 h-4 mr-1" />
-            ) : (
-              <XCircle className="w-4 h-4 mr-1" />
+            onClick={() => onStatusChange(user)}
+            className={cn(
+              "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+              activeLicense
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
             )}
-            {user.status === 'active' ? 'Ativo' : 'Inativo'}
+          >
+            {activeLicense ? (
+              <>
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Ativo
+              </>
+            ) : (
+              <>
+                <XCircle className="h-3 w-3 mr-1" />
+                Inativo
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => onViewDetails(user)}
+            className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Ver detalhes
           </button>
         </div>
       </div>

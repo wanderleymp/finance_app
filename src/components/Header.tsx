@@ -1,5 +1,18 @@
-import { Bell, Menu, Moon, Sun, User } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Bell, 
+  Menu, 
+  Moon, 
+  Sun, 
+  User,
+  LogOut,
+  Settings,
+  ChevronDown
+} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
+import { cn } from '../lib/utils';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -7,6 +20,14 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const handleLogout = () => {
+    signOut();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white dark:bg-gray-800 shadow">
@@ -38,10 +59,53 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Bell size={20} />
           </button>
 
-          <div className="relative ml-3">
-            <button className="flex max-w-xs items-center rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <User size={20} className="text-gray-400" />
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                <span className="text-white font-medium text-sm">
+                  {user.person.full_name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                </span>
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {user.person.full_name.split(' ')[0]}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {user.username}
+                </p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      navigate('/profile');
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurações
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/50"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

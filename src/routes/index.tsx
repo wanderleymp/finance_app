@@ -7,6 +7,8 @@ import { ForgotPassword } from '../pages/auth/ForgotPassword';
 import { Dashboard } from '../pages/dashboard/Dashboard';
 import { UsersList } from '../pages/users/UsersList';
 import { PeopleList } from '../pages/people/PeopleList';
+import { LicensesList } from '../pages/licenses/LicensesList';
+import { MovementsList } from '../pages/movements/MovementsList';
 import { useAuth } from '../hooks/useAuth';
 
 export function AppRoutes() {
@@ -26,6 +28,8 @@ export function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users" element={<UsersList />} />
           <Route path="/people" element={<PeopleList />} />
+          <Route path="/movements" element={<MovementsList />} />
+          <Route path="/licenses" element={<LicensesList />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       )}
